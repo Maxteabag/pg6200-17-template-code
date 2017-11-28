@@ -13,6 +13,9 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/transform2.hpp>
 
+#define min(a,b)            (((a) < (b)) ? (a) : (b))
+#define max(a,b)            (((a) > (b)) ? (a) : (b))
+
 using std::cerr;
 using std::endl;
 using GLUtils::VBO;
@@ -117,6 +120,9 @@ GameManager::GameManager() {
 	far_plane = 30.0f;
 	fovy = 45.0f;
 	light.position = glm::vec3(10, 0, 0);
+
+	bigBunnyColor = glm::vec3(.3, .4, .5);
+	smallBunnyColor = glm::vec3(9, .2, .8);
 }
 
 GameManager::~GameManager() {
@@ -177,12 +183,21 @@ void GameManager::setOpenGLStates() {
 
 void GameManager::createMatrices() {
 	model_matrix = glm::scale(glm::mat4(1.0f), glm::vec3(3));
+	model_matrix2 = glm::scale(glm::mat4(1.0f), glm::vec3(1));
+	model_matrix2 = glm::translate(model_matrix2, glm::vec3(5, 0, 0));
+	model_matrix2 = glm::translate(model_matrix2, glm::vec3(0, 2, 0));
 
-	camera.projection = glm::perspective(fovy / zoom, window_width / (float)window_height, near_plane, far_plane);
-	camera.view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -10.0f));
+	/*camera.projection = glm::perspective(fovy / zoom, window_width / (float)window_height, near_plane, far_plane);
+	camera.view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -10.0f));*/
 
 	light.projection = glm::perspective(90.0f, 1.0f, near_plane, far_plane);
 	light.view = glm::lookAt(light.position, glm::vec3(0), glm::vec3(0.0, 1.0, 0.0));
+
+
+
+	camera.projection = light.projection;
+	viewAsLight = true;
+	camera.view = light.view;
 }
 
 void GameManager::createSimpleProgram() {
@@ -196,11 +211,10 @@ void GameManager::createSimpleProgram() {
 
 	program->disuse();
 
-	fs_src = readFile("shaders/fbo.frag");
-	vs_src = readFile("shaders/fbo.vert");
+	fs_src = readFile("shaders/fbo.frag"); //This defines the view of debug view
+	vs_src = readFile("shaders/fbo.vert"); //This defines the view of debug view
 
 	debugview_program.reset(new Program(vs_src, fs_src));
-
 	fs_src = readFile("shaders/cube_map.frag");
 	vs_src = readFile("shaders/cube_map.vert");
 	// For this one we will also add a geometry shader!
@@ -216,6 +230,12 @@ void GameManager::createSimpleProgram() {
 	diffuse_cubemap.reset(new GLUtils::CubeMap("cubemaps/diffuse/", "jpg"));
 	glProgramUniform1i(cube_program->name, cube_program->getUniform("cubemap"), 0);
 	cube_program->disuse();
+
+	fs_src = readFile("shaders/fbow.frag"); //This defines the view of debug view
+	vs_src = readFile("shaders/fbow.vert"); //This defines the view of debug view
+	lightspace_program.reset(new Program(vs_src, fs_src));
+	lightspace_program->use();
+	lightspace_program->disuse();
 }
 
 void GameManager::createVAO() {
@@ -229,10 +249,10 @@ void GameManager::createVAO() {
 	model.reset(new Model("models/bunny.obj", false));
 
 	model->getVertices()->bind();
-	program->setAttributePointer("position", 3);
+	program->setAttributePointer("position", 3); //3
 	CHECK_GL_ERROR();
 	model->getNormals()->bind();
-	program->setAttributePointer("normal", 3);
+	program->setAttributePointer("normal", 3); //3
 	CHECK_GL_ERROR();
 
 	// Setting up cube VBO data with its own VAO reference
@@ -253,17 +273,6 @@ void GameManager::createVAO() {
 	initDebugView();
 	screenshot_fbo.reset(new ScreenshotFBO(1024, 1024));
 
-	// Interleaved VBOs
-	/*
-	GLint k = 9 * sizeof(float); // stride size
-
-	model->getVertices()->bind();
-	program->setAttributePointer("position", 3, GL_FLOAT, GL_FALSE, k, 0);
-	CHECK_GL_ERROR();
-
-	program->setAttributePointer("normal", 3, GL_FLOAT, GL_FALSE, k, reinterpret_cast<void *>(3 * sizeof(float)));
-	CHECK_GL_ERROR();
-	*/
 	glBindVertexArray(0);
 	CHECK_GL_ERROR();
 }
@@ -311,7 +320,7 @@ void GameManager::initDebugView(){
 }
 
 void GameManager::renderMeshRecursive(MeshPart& mesh, const std::shared_ptr<Program>& program, 
-		const glm::mat4& view_matrix, const glm::mat4& model_matrix, glm::mat4& projection_matrix, glm::vec3 light_position) {
+		const glm::mat4& view_matrix, const glm::mat4& model_matrix, glm::mat4& projection_matrix, glm::vec3 light_position, glm::vec3 color) {
 	//Create modelview matrix
 	glm::mat4 meshpart_model_matrix = model_matrix * mesh.transform;
 	glm::mat4 model_view_mat = view_matrix*meshpart_model_matrix;
@@ -326,15 +335,35 @@ void GameManager::renderMeshRecursive(MeshPart& mesh, const std::shared_ptr<Prog
 	glUniformMatrix4fv(program->getUniform("model_view_mat"), 1, 0, glm::value_ptr(model_view_mat));
 	glUniformMatrix4fv(program->getUniform("proj_mat"), 1, 0, glm::value_ptr(projection_matrix));
 
-	glUniform3fv(program->getUniform("colour"), 1, glm::value_ptr(glm::vec3(.0f, 1.8f, .8f)));
+	glUniform3fv(program->getUniform("colour"), 1, glm::value_ptr(color));
 	glUniform3fv(program->getUniform("light_position"), 1, glm::value_ptr(light_pos));
 	glUniform3fv(program->getUniform("camera_position"), 1, glm::value_ptr(camera_pos));
 
+	////////////////
+	//////
+	//
+
+	//
+	/////
+	////////////////
+
+
 	glDrawArrays(GL_TRIANGLES, mesh.first, mesh.count);
 	for (int i=0; i<(int)mesh.children.size(); ++i)
-		renderMeshRecursive(mesh.children.at(i), program, view_matrix, meshpart_model_matrix, projection_matrix, light_position);
+		renderMeshRecursive(mesh.children.at(i), program, view_matrix, meshpart_model_matrix, projection_matrix, light_position, color);
 
 	program->disuse();
+
+	/*lightspace_program->use();
+	glUniform3fv(program->getUniform("lightSpaceMatrix"), 1, glm::value_ptr(light.projection * light.view));
+	glUniform3fv(program->getUniform("model"), 1, glm::value_ptr(model_matrix));
+	lightspace_program->disuse();*/
+
+	//lightspace_program->use();
+	//glm::mat4 lightSpaceMatrix = light.projection * light.view;
+	//glUniformMatrix4fv(lightspace_program->getUniform("lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
+	//glUniformMatrix4fv(lightspace_program->getUniform("model"), 1, GL_FALSE, glm::value_ptr(model_view_mat));
+	//lightspace_program->disuse();
 }
 
 void GameManager::renderDebugView()
@@ -346,7 +375,7 @@ void GameManager::renderDebugView()
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	glBindVertexArray(debugview_vao);
-	debugview_program->use();
+	debugview_program->use(); // essential <<<>>> other wise, the program will break
 
 	glUniform1i(debugview_program->getUniform("texture"), 0);
 	glBindTexture(GL_TEXTURE_2D, screenshot_fbo->getTexture());
@@ -354,22 +383,16 @@ void GameManager::renderDebugView()
 	// this is independent of the transformations to the world
 	// we are talking about window space
 	glm::mat3 transform = glm::mat3(glm::vec3(0.5, 0.0, 0.0), glm::vec3(0.0, 0.5, 0.0), glm::vec3(-0.5, -0.5, 0.5));
-
 	glProgramUniformMatrix3fv(debugview_program->name, debugview_program->getUniform("transform"), 1, 0, glm::value_ptr(transform));
-
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); //essential <<<>>> otherwise nothing happens // triangle fan draws half of the picutre, why?
 	debugview_program->disuse();
 	glBindVertexArray(0);
-
 	glDisable(GL_BLEND);
 }
 
 void GameManager::renderCubeMap(glm::mat4 view){
-	cube_program->use();
+	
 
-	glActiveTexture(GL_TEXTURE0);
-	diffuse_cubemap->bindTexture(GL_TEXTURE0);
 
 	glBindVertexArray(main_scene_vao[1]);
 
@@ -384,7 +407,7 @@ void GameManager::renderCubeMap(glm::mat4 view){
 	glm::vec3 camera_pos = glm::vec3(model_view_mat_inverse[3] / model_view_mat_inverse[3].w);
 	
 	cube_program->use();
-	glUniform3fv(cube_program->getUniform("colour"), 1, glm::value_ptr(glm::vec3(1.0f, 0.8f, 0.8f)));
+	glUniform3fv(cube_program->getUniform("colour"), 1, glm::value_ptr(glm::vec3(0.6f, 0.0f, 1.0f)));
 
 	glUniform3fv(cube_program->getUniform("light_position"), 1, glm::value_ptr(light_pos));
 	glUniform3fv(cube_program->getUniform("camera_position"), 1, glm::value_ptr(camera_pos));
@@ -399,12 +422,36 @@ void GameManager::renderCubeMap(glm::mat4 view){
 void GameManager::render() {
 	float elapsed = fps_timer.elapsedAndRestart();
 
-	glm::mat4 rotation = glm::rotate(elapsed*20.f, 0.0f, 1.0f, 0.0f);
+
+	cube_program->use();
+	//glUniform1i(cube_program->getUniform("depthMap"), 0);
+	glBindTexture(GL_TEXTURE_2D, screenshot_fbo->getTexture());
+	glBindVertexArray(main_scene_vao[1]);
+	cube_program->disuse();
+
+	//cube_program->use();
+	//glActiveTexture(GL_TEXTURE1);
+	//diffuse_cubemap->bindTexture(GL_TEXTURE1);
+	//cube_program->disuse();
+
+	glm::mat4 rotation = glm::rotate(elapsed*0.5f, glm::vec3(0.0f, 1.0f, 0.0f));
 	light.position = glm::mat3(rotation) * light.position;
 	light.view = glm::lookAt(light.position, glm::vec3(0), glm::vec3(0.0, 1.0, 0.0));
 
-	// change camera orientation
-	glm::mat4 view = camera.view * cam_trackball.getTransform();
+	glm::mat4 view;
+	if (viewAsLight) {
+		view = light.view;
+	}
+	else {
+		view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -10.0f));
+	}
+
+	model_matrix2 = glm::translate(model_matrix2, glm::vec3(-5, -2, 0)); //move to origo
+
+	glm::mat4 bunnyRotation = glm::rotate(elapsed*1, glm::vec3(3.0f, 0, 0));
+	model_matrix2 = model_matrix2 * bunnyRotation;
+
+	model_matrix2 = glm::translate(model_matrix2, glm::vec3(5, 2, 0)); //move back
 
 	// just showcasing how we would render to a framebuffer
 	// we render the textures written to our FBO on the debugview
@@ -419,16 +466,8 @@ void GameManager::render() {
 		glViewport(0, 0, screenshot_fbo->getWidth(), screenshot_fbo->getHeight());
 	}
 
-	//Clear screen, and set the correct program
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
 	renderCubeMap(view);
-
-	// program->use();
-	// glUniform3fv(program->getUniform("light_position"), 1, glm::value_ptr(light.position));
-
-	//Use lighting as default
-//	glUniform1i(program->getUniform("lighting"), 1);
 
 	//Render geometry
 	glBindVertexArray(main_scene_vao[0]);
@@ -444,7 +483,7 @@ void GameManager::render() {
 		glEnable(GL_POLYGON_OFFSET_FILL);
 		glPolygonOffset(1.1f, 4.0f);
 		//Render geometry to be offset here
-		renderMeshRecursive(model->getMesh(), cube_program, view, model_matrix, camera.projection, light.position);
+		renderMeshRecursive(model->getMesh(), cube_program, view, model_matrix, camera.projection, light.position, glm::vec3(.3,.5,.8));
 		glDisable(GL_POLYGON_OFFSET_FILL);
 
 		//then, render wireframe, without lighting
@@ -462,7 +501,9 @@ void GameManager::render() {
 		THROW_EXCEPTION("Rendermode not supported");
 	}
 
-	renderMeshRecursive(model->getMesh(), cube_program, view, model_matrix, camera.projection, light.position);
+	smallBunnyColor = glm::vec3(model_matrix2[3].data[0], model_matrix2[3].data[1], model_matrix2[3].data[2]);
+	renderMeshRecursive(model->getMesh(), cube_program, view, model_matrix, camera.projection, light.position, bigBunnyColor);
+	renderMeshRecursive(model->getMesh(), cube_program, view, model_matrix2, camera.projection, light.position, smallBunnyColor);
 
 	if(showDebugView)
 		renderDebugView();
@@ -472,13 +513,13 @@ void GameManager::render() {
 }
 
 void GameManager::zoomIn() {
-	zoom *= 1.1f;
+	zoom *= 1.001f;
 	camera.projection = glm::perspective(fovy / zoom,
 		window_width / (float)window_height, near_plane, far_plane);
 }
 
 void GameManager::zoomOut() {
-	zoom = std::max(zoom*0.9f, 0.5f);
+	zoom = max(zoom*0.009f, 0.5f);
 	camera.projection = glm::perspective(fovy / zoom,
 		window_width / (float)window_height, near_plane, far_plane);
 }
@@ -513,6 +554,12 @@ void GameManager::play() {
 					break;
 				case SDLK_p:
 					screenshot();
+					break;
+				case SDLK_l:
+					viewAsLight = !viewAsLight;
+					break;
+				case SDLK_k:
+					drawLight = !drawLight;
 					break;
 				case SDLK_RIGHT:
 					camera.view = glm::translate(camera.view, glm::vec3(-0.1, 0.0, 0.0));

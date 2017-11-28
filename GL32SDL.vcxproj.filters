@@ -94,5 +94,17 @@
     <None Include="shaders\basic_phong.frag">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="simpleDepthShader.vert">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="simpleDepthShader.frag">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="shaders\fbow.frag">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="shaders\fbow.vert">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

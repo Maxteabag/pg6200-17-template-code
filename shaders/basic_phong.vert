@@ -5,6 +5,8 @@ uniform mat4 model_view_mat;
 uniform mat3 normal_mat;
 uniform vec3 light_position;
 
+
+
 in  vec3 position;
 in  vec3 normal;
 

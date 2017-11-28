@@ -102,6 +102,9 @@ protected:
 
 	int screenshot_number;
 
+	glm::vec3 bigBunnyColor;
+	glm::vec3 smallBunnyColor;
+
 private:
 	enum RenderMode {
 		RENDERMODE_PHONG,
@@ -116,8 +119,8 @@ private:
 	void GameManager::renderDebugView();
 
 	void (GameManager::*render_model)(); // TODO
-	static void renderMeshRecursive(MeshPart& mesh, const std::shared_ptr<GLUtils::Program>& program, const glm::mat4& modelview, const glm::mat4& transform, 
-		glm::mat4& projection_matrix, glm::vec3 light_position);
+	void renderMeshRecursive(MeshPart& mesh, const std::shared_ptr<GLUtils::Program>& program, const glm::mat4& modelview, const glm::mat4& transform, 
+		glm::mat4& projection_matrix, glm::vec3 light_position, glm::vec3 color);
 	void GameManager::renderCubeMap(glm::mat4 view);
 
 	void GameManager::screenshot();
@@ -161,8 +164,13 @@ private:
 	} camera;
 
 	std::shared_ptr<Model> model;
-	std::shared_ptr<GLUtils::Program> program, cube_program, debugview_program;
+	std::shared_ptr<GLUtils::Program> program, cube_program, debugview_program, lightspace_program;
 	glm::mat4 model_matrix; // TODO should be in a struct with the model mesh
+	glm::mat4 model_matrix2; // TODO should be in a struct with the model mesh
+	glm::mat4 lightSpaceMatrix; // TODO should be in a struct with the model mesh
+	bool viewAsLight = false;
+	bool drawLight = false;
+	GLuint depthMap;
 };
 
 #endif // _GAMEMANAGER_H_

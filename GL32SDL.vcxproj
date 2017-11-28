@@ -30,7 +30,7 @@
     <ClCompile Include="src\GeometryManager.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\Model.cpp" />
-    <ClCompile Include="src\ScreenshotFBO.cpp" >
+    <ClCompile Include="src\ScreenshotFBO.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="src\VirtualTrackball.cpp" />
@@ -47,6 +47,10 @@
     <None Include="shaders\cube_map.frag" />
     <None Include="shaders\cube_map.geom" />
     <None Include="shaders\cube_map.vert" />
+    <None Include="shaders\fbow.frag" />
+    <None Include="shaders\fbow.vert" />
+    <None Include="simpleDepthShader.frag" />
+    <None Include="simpleDepthShader.vert" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{0EB6082A-7B48-4E60-B4B3-2EB3C7254AC1}</ProjectGuid>
@@ -64,7 +68,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <CharacterSet>NotSet</CharacterSet>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v140</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">

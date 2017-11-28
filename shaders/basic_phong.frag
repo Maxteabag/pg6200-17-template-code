@@ -21,4 +21,7 @@ void main() {
 	} else {
 		res_Color = vec4(0.0f, 0.0f, 0.0f, 1.0f);
 	}
+
+	///vec4 colour = texture2D(shadowMap, colour.xy);
+	///res_Color = vec4(colour.xxx, 0.8f);
 }
